@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
 )
@@ -33,13 +34,12 @@ type services struct {
 	versionService       *service.VersionService
 	fileStorage          storage.FileStorage
 	appLockService       *service.AppLockService
-	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
-
-	apiKeyModule   *apikey.Module
-	oidcModule     *oidc.Module
-	webauthnModule *webauthn.Module
-	mdsService     *mds.Service
+	apiKeyModule         *apikey.Module
+	oidcModule           *oidc.Module
+	webauthnModule       *webauthn.Module
+	userSignUpModule     *usersignup.Module
+	mdsService           *mds.Service
 }
 
 // Initializes all services
@@ -94,7 +94,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		Config: oidc.Config{
 			BaseURL:      common.EnvConfig.AppURL,
 			TokenBaseURL: common.EnvConfig.AppURL,
-			Secret:       string(common.EnvConfig.EncryptionKey),
+			Secret:       common.EnvConfig.EncryptionKey,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,
@@ -122,7 +122,13 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create API key module: %w", err)
 	}
 
-	svc.userSignUpService = service.NewUserSignupService(db, svc.jwtService, svc.auditLogService, svc.appConfigService, svc.userService)
+	svc.userSignUpModule = usersignup.New(usersignup.Dependencies{
+		DB:          db,
+		Signer:      svc.jwtService,
+		AuditLog:    svc.auditLogService,
+		AppConfig:   svc.appConfigService,
+		UserCreator: svc.userService,
+	})
 	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 
 	svc.versionService = service.NewVersionService(httpClient)
