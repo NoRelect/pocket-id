@@ -4,13 +4,19 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import WebauthnService from '$lib/services/webauthn-service';
-	import type { Passkey } from '$lib/types/passkey.type';
+	import type { MdsAuthenticator, Passkey } from '$lib/types/passkey.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideKeyRound } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
-	let { passkeys = $bindable() }: { passkeys: Passkey[] } = $props();
+	let {
+		passkeys = $bindable(),
+		mdsMap = new Map<string, MdsAuthenticator>()
+	}: {
+		passkeys: Passkey[];
+		mdsMap?: Map<string, MdsAuthenticator>;
+	} = $props();
 
 	const webauthnService = new WebauthnService();
 
@@ -43,6 +49,9 @@
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
+			isCompromised={passkey.isCompromised}
+			aaguid={passkey.aaguid}
+			mdsAuthenticator={mdsMap.get(passkey.aaguid)}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}
 		/>

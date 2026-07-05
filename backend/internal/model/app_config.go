@@ -60,6 +60,10 @@ type AppConfig struct {
 	EmailOneTimeAccessAsAdminEnabled           AppConfigVariable `key:"emailOneTimeAccessAsAdminEnabled,public"`           // Public
 	EmailApiKeyExpirationEnabled               AppConfigVariable `key:"emailApiKeyExpirationEnabled"`
 	EmailVerificationEnabled                   AppConfigVariable `key:"emailVerificationEnabled,public"` // Public
+	PasskeyAttestationMode                     AppConfigVariable `key:"passkeyAttestationMode,public"`
+	PasskeyAllowedAAGUIDs                      AppConfigVariable `key:"passkeyAllowedAaguids,public"`
+	PasskeyMinCertificationLevel               AppConfigVariable `key:"passkeyMinCertificationLevel,public"`
+	PasskeyRequiredKeyProtection               AppConfigVariable `key:"passkeyRequiredKeyProtection,public"`
 	// LDAP
 	LdapEnabled                        AppConfigVariable `key:"ldapEnabled,public"` // Public
 	LdapUrl                            AppConfigVariable `key:"ldapUrl"`

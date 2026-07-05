@@ -17,6 +17,9 @@ type WebauthnCredential struct {
 	AttestationType string
 	Transport       AuthenticatorTransportList
 
+	AAGUID            string `gorm:"column:aaguid"`
+	AttestationObject []byte `gorm:"column:attestation_object"`
+
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 

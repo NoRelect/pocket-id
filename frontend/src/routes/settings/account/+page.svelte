@@ -30,6 +30,7 @@
 	let { data } = $props();
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
+	const mdsMap = data.mdsMap;
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
 
@@ -159,7 +160,7 @@
 		</Item.Actions>
 	</Item.Root>
 	{#if passkeys.length != 0}
-		<PasskeyList bind:passkeys />
+		<PasskeyList bind:passkeys {mdsMap} />
 	{/if}
 </Item.Group>
 

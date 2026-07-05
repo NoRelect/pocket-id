@@ -2,13 +2,16 @@ package webauthn
 
 import (
 	"net/http"
+	"sort"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/google/uuid"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
 )
 
 type handler struct {
@@ -32,6 +35,17 @@ func (h *handler) beginRegistration(c *gin.Context) {
 	c.JSON(http.StatusOK, options.Response)
 }
 
+func (h *handler) enrichCredentialDto(d *dto.WebauthnCredentialDto) {
+	if h.service.mds == nil || d.AAGUID == "" {
+		return
+	}
+	entry, found := h.service.mds.Lookup(d.AAGUID)
+	if !found {
+		return
+	}
+	d.IsCompromised = mds.IsCompromised(entry)
+}
+
 func (h *handler) verifyRegistration(c *gin.Context) {
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
@@ -52,6 +66,7 @@ func (h *handler) verifyRegistration(c *gin.Context) {
 		return
 	}
 
+	h.enrichCredentialDto(&credentialDto)
 	c.JSON(http.StatusOK, credentialDto)
 }
 
@@ -79,20 +94,20 @@ func (h *handler) verifyLogin(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.service.VerifyLogin(c.Request.Context(), sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	result, err := h.service.VerifyLogin(c.Request.Context(), sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
+	if err := dto.MapStruct(result.User, &userDto); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
+	cookie.AddAccessTokenCookie(c, maxAge, result.Token)
 
 	c.JSON(http.StatusOK, userDto)
 }
@@ -109,6 +124,10 @@ func (h *handler) listCredentials(c *gin.Context) {
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
 		_ = c.Error(err)
 		return
+	}
+
+	for i := range credentialDtos {
+		h.enrichCredentialDto(&credentialDtos[i])
 	}
 
 	c.JSON(http.StatusOK, credentialDtos)
@@ -151,7 +170,55 @@ func (h *handler) updateCredential(c *gin.Context) {
 		return
 	}
 
+	h.enrichCredentialDto(&credentialDto)
 	c.JSON(http.StatusOK, credentialDto)
+}
+
+func (h *handler) listMdsAuthenticators(c *gin.Context) {
+	entries := h.service.mds.ListEntries()
+	result := make([]dto.MdsAuthenticatorDto, 0, len(entries))
+	for _, e := range entries {
+		if e.AaGUID == uuid.Nil {
+			continue
+		}
+
+		attestationTypes := make([]string, len(e.MetadataStatement.AttestationTypes))
+		for i, t := range e.MetadataStatement.AttestationTypes {
+			attestationTypes[i] = string(t)
+		}
+
+		var icon, iconDark string
+		if e.MetadataStatement.Icon != nil {
+			icon = e.MetadataStatement.Icon.String()
+		}
+		if e.MetadataStatement.IconDark != nil {
+			iconDark = e.MetadataStatement.IconDark.String()
+		}
+
+		result = append(result, dto.MdsAuthenticatorDto{
+			AAGUID:                 e.AaGUID.String(),
+			Description:            e.MetadataStatement.Description,
+			IsCompromised:          mds.IsCompromised(e),
+			FidoCertificationLevel: mds.HighestCertificationLevel(e),
+			AttestationTypes:       attestationTypes,
+			KeyProtection:          e.MetadataStatement.KeyProtection,
+			AttachmentHint:         e.MetadataStatement.AttachmentHint,
+			Icon:                   icon,
+			IconDark:               iconDark,
+		})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Description < result[j].Description
+	})
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *handler) listMdsKeyProtection(c *gin.Context) {
+	values := h.service.mds.DistinctKeyProtection()
+	if values == nil {
+		values = []string{}
+	}
+	c.JSON(http.StatusOK, values)
 }
 
 func (h *handler) logout(c *gin.Context) {

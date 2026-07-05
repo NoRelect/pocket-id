@@ -13,7 +13,37 @@ export type AppConfig = {
 	uiConfigDisabled: boolean;
 	accentColor: string;
 	requireUserEmail: boolean;
+	passkeyAttestationMode: 'disabled' | 'optional' | 'required';
+	passkeyAllowedAaguids: string;
+	passkeyMinCertificationLevel: FidoCertificationLevel | '';
+	passkeyRequiredKeyProtection: string;
 };
+
+export type FidoCertificationLevel =
+	| 'FIDO_CERTIFIED'
+	| 'FIDO_CERTIFIED_L1'
+	| 'FIDO_CERTIFIED_L1plus'
+	| 'FIDO_CERTIFIED_L2'
+	| 'FIDO_CERTIFIED_L2plus'
+	| 'FIDO_CERTIFIED_L3'
+	| 'FIDO_CERTIFIED_L3plus';
+
+export const fidoCertificationLevels: FidoCertificationLevel[] = [
+	'FIDO_CERTIFIED',
+	'FIDO_CERTIFIED_L1',
+	'FIDO_CERTIFIED_L1plus',
+	'FIDO_CERTIFIED_L2',
+	'FIDO_CERTIFIED_L2plus',
+	'FIDO_CERTIFIED_L3',
+	'FIDO_CERTIFIED_L3plus'
+];
+
+export function formatCertificationLevel(level: string): string {
+	return level
+		.replace(/^FIDO_CERTIFIED$/, 'FIDO Certified')
+		.replace(/^FIDO_CERTIFIED_L(\d)plus$/, 'FIDO Certified L$1+')
+		.replace(/^FIDO_CERTIFIED_L(\d)$/, 'FIDO Certified L$1');
+}
 
 export type AllAppConfig = AppConfig & {
 	// General

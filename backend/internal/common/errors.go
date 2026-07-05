@@ -277,3 +277,9 @@ type InvalidEmailVerificationTokenError struct{}
 func (e InvalidEmailVerificationTokenError) Error() string { return "Invalid email verification token" }
 
 func (e InvalidEmailVerificationTokenError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type PasskeyAttestationError struct{ Reason string }
+
+func (e PasskeyAttestationError) Error() string { return "passkey attestation error: " + e.Reason }
+
+func (e PasskeyAttestationError) HttpStatusCode() int { return http.StatusForbidden }

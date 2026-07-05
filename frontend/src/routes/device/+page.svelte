@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import ScopeList from '$lib/components/scope-list.svelte';
@@ -46,8 +47,8 @@
 			if (!$userStore) {
 				const loginOptions = await webauthnService.getLoginOptions();
 				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
-				const user = await webauthnService.finishLogin(authResponse);
-				await userStore.setUser(user);
+				const result = await webauthnService.finishLogin(authResponse);
+				await userStore.setUser(result);
 			}
 
 			const info = await oidcService.getDeviceCodeInfo(userCode);

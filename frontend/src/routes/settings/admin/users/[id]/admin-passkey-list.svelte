@@ -4,17 +4,19 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
-	import type { Passkey } from '$lib/types/passkey.type';
+	import type { MdsAuthenticator, Passkey } from '$lib/types/passkey.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideKeyRound } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {
 		userId,
-		passkeys = $bindable()
+		passkeys = $bindable(),
+		mdsMap = new Map<string, MdsAuthenticator>()
 	}: {
 		userId: string;
 		passkeys: Passkey[];
+		mdsMap?: Map<string, MdsAuthenticator>;
 	} = $props();
 
 	const userService = new UserService();
@@ -51,6 +53,9 @@
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
 			showRenameAction={false}
+			isCompromised={passkey.isCompromised}
+			aaguid={passkey.aaguid}
+			mdsAuthenticator={mdsMap.get(passkey.aaguid)}
 			onDelete={() => deletePasskey(passkey)}
 		/>
 	{/each}

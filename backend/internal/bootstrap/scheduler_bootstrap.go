@@ -40,5 +40,10 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, http
 		return fmt.Errorf("failed to register SCIM scheduler job: %w", err)
 	}
 
+	err = scheduler.RegisterMDSUpdateJob(ctx, svc.mdsService)
+	if err != nil {
+		return fmt.Errorf("failed to register FIDO MDS update job: %w", err)
+	}
+
 	return nil
 }

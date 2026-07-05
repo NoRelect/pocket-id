@@ -7,6 +7,7 @@
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import {
+		KeyRound,
 		LucideImage,
 		LucideInfo,
 		Mail,
@@ -18,6 +19,7 @@
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
+	import AppConfigPasskeyAttestationForm from './forms/app-config-passkey-attestation-form.svelte';
 	import AppConfigSignupDefaultsForm from './forms/app-config-signup-defaults-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
 
@@ -131,6 +133,17 @@
 		description={m.configure_smtp_to_send_emails()}
 	>
 		<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+	</CollapsibleCard>
+</div>
+
+<div>
+	<CollapsibleCard
+		id="application-configuration-passkey-attestation"
+		icon={KeyRound}
+		title={m.passkey_attestation_title()}
+		description={m.passkey_attestation_configure()}
+	>
+		<AppConfigPasskeyAttestationForm {appConfig} callback={updateAppConfig} />
 	</CollapsibleCard>
 </div>
 

@@ -1,11 +1,13 @@
 package webauthn
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -17,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
 )
 
 // authenticationMethodPhishingResistant identifies phishing-resistant authentication, such as passkeys
@@ -29,6 +32,7 @@ type Service struct {
 	signer    TokenService
 	auditLog  AuditLogger
 	appConfig AppConfigProvider
+	mds       *mds.Service
 }
 
 func newService(deps Dependencies) (*Service, error) {
@@ -62,6 +66,7 @@ func newService(deps Dependencies) (*Service, error) {
 		signer:    deps.Signer,
 		auditLog:  deps.AuditLog,
 		appConfig: deps.AppConfig,
+		mds:       deps.MDS,
 	}, nil
 }
 
@@ -83,12 +88,20 @@ func (s *Service) BeginRegistration(ctx context.Context, userID string) (*Public
 		return nil, fmt.Errorf("failed to load user: %w", err)
 	}
 
-	options, session, err := s.webAuthn.BeginRegistration(
-		&user,
+	attestationMode := strings.ToLower(strings.TrimSpace(s.appConfig.GetDbConfig().PasskeyAttestationMode.Value))
+	conveyancePreference := protocol.PreferNoAttestation
+	if attestationMode == AttestationModeOptional || attestationMode == AttestationModeRequired {
+		conveyancePreference = protocol.PreferDirectAttestation
+	}
+
+	registrationOpts := []gowebauthn.RegistrationOption{
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
 		gowebauthn.WithExtensions(map[string]any{"credProps": true}), // Required for Firefox Android to properly save the key in Google password manager
-	)
+		gowebauthn.WithConveyancePreference(conveyancePreference),
+	}
+
+	options, session, err := s.webAuthn.BeginRegistration(&user, registrationOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin WebAuthn registration: %w", err)
 	}
@@ -121,6 +134,8 @@ func (s *Service) BeginRegistration(ctx context.Context, userID string) (*Public
 }
 
 func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, userID string, r *http.Request, ipAddress string) (model.WebauthnCredential, error) {
+	s.updateWebAuthnConfig()
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -158,18 +173,33 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 		return model.WebauthnCredential{}, fmt.Errorf("failed to finish WebAuthn registration: %w", err)
 	}
 
-	// Determine passkey name using AAGUID and User-Agent
+	attestationProvided := credential.AttestationType != "none" && credential.AttestationType != ""
+
+	allowedAAGUIDs := parseAllowedAAGUIDs(s.appConfig.GetDbConfig().PasskeyAllowedAAGUIDs.Value)
+	if err := s.checkAttestation(credential.Authenticator.AAGUID, credential.AttestationType, allowedAAGUIDs); err != nil {
+		return model.WebauthnCredential{}, err
+	}
+
+	aaguidStr := utils.FormatAAGUID(credential.Authenticator.AAGUID)
+
 	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
 
+	var attestationObject []byte
+	if attestationProvided {
+		attestationObject = credential.Attestation.Object
+	}
+
 	credentialToStore := model.WebauthnCredential{
-		Name:            passkeyName,
-		CredentialID:    credential.ID,
-		AttestationType: credential.AttestationType,
-		PublicKey:       credential.PublicKey,
-		Transport:       credential.Transport,
-		UserID:          user.ID,
-		BackupEligible:  credential.Flags.BackupEligible,
-		BackupState:     credential.Flags.BackupState,
+		Name:              passkeyName,
+		CredentialID:      credential.ID,
+		AttestationType:   credential.AttestationType,
+		PublicKey:         credential.PublicKey,
+		Transport:         credential.Transport,
+		UserID:            user.ID,
+		BackupEligible:    credential.Flags.BackupEligible,
+		BackupState:       credential.Flags.BackupState,
+		AAGUID:            aaguidStr,
+		AttestationObject: attestationObject,
 	}
 	err = tx.
 		WithContext(ctx).
@@ -227,13 +257,17 @@ func (s *Service) BeginLogin(ctx context.Context) (*PublicKeyCredentialRequestOp
 	}, nil
 }
 
-func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
+type LoginResult struct {
+	User  model.User
+	Token string
+}
+
+func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (LoginResult, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	// Load & delete the session row
 	var storedSession WebauthnSession
 	err := tx.
 		WithContext(ctx).
@@ -241,7 +275,7 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 		Delete(&storedSession, "id = ?", sessionID).
 		Error
 	if err != nil {
-		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", err)
+		return LoginResult{}, fmt.Errorf("failed to load WebAuthn session: %w", err)
 	}
 
 	session := gowebauthn.SessionData{
@@ -263,26 +297,43 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 	}, session, credentialAssertionData)
 
 	if err != nil {
-		return model.User{}, "", err
+		return LoginResult{}, err
 	}
 
 	if user.Disabled {
-		return model.User{}, "", &common.UserDisabledError{}
+		return LoginResult{}, &common.UserDisabledError{}
+	}
+
+	cfg := s.appConfig.GetDbConfig()
+	if strings.ToLower(strings.TrimSpace(cfg.PasskeyAttestationMode.Value)) == AttestationModeRequired {
+		usedCredentialID := credentialAssertionData.RawID
+		for _, cred := range user.Credentials {
+			if !bytes.Equal(cred.CredentialID, usedCredentialID) {
+				continue
+			}
+			if cred.AttestationObject == nil {
+				return LoginResult{}, &common.PasskeyAttestationError{Reason: "passkey is not attested"}
+			}
+			if err := s.checkCredentialRestrictions(cred.AAGUID); err != nil {
+				return LoginResult{}, err
+			}
+			break
+		}
 	}
 
 	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant)
 	if err != nil {
-		return model.User{}, "", err
+		return LoginResult{}, err
 	}
 
 	s.auditLog.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.User{}, "", err
+		return LoginResult{}, err
 	}
 
-	return *user, token, nil
+	return LoginResult{User: *user, Token: token}, nil
 }
 
 func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
@@ -372,9 +423,15 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, na
 	return credential, nil
 }
 
-// updateWebAuthnConfig updates the WebAuthn configuration with the app name as it can change during runtime
 func (s *Service) updateWebAuthnConfig() {
-	s.webAuthn.Config.RPDisplayName = s.appConfig.GetDbConfig().AppName.Value
+	cfg := s.appConfig.GetDbConfig()
+	s.webAuthn.Config.RPDisplayName = cfg.AppName.Value
+
+	if s.mds != nil {
+		mode := strings.ToLower(strings.TrimSpace(cfg.PasskeyAttestationMode.Value))
+		s.mds.SetEnforce(mode == AttestationModeRequired)
+		s.webAuthn.Config.MDS = s.mds
+	}
 }
 
 func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {

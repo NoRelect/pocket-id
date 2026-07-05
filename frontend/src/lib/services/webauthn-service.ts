@@ -1,6 +1,7 @@
 import userStore from '$lib/stores/user-store';
+import type { MdsAuthenticator } from '$lib/types/passkey.type';
 import type { Passkey } from '$lib/types/passkey.type';
-import type { User } from '$lib/types/user.type';
+import type { LoginResponse, User } from '$lib/types/user.type';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
 import APIService from './api-service';
 
@@ -13,7 +14,7 @@ class WebAuthnService extends APIService {
 	getLoginOptions = async () => (await this.api.get(`/webauthn/login/start`)).data;
 
 	finishLogin = async (body: AuthenticationResponseJSON) =>
-		(await this.api.post(`/webauthn/login/finish`, body)).data as User;
+		(await this.api.post(`/webauthn/login/finish`, body)).data as LoginResponse;
 
 	logout = async () => {
 		await this.api.post(`/webauthn/logout`);
@@ -33,6 +34,12 @@ class WebAuthnService extends APIService {
 	reauthenticate = async (body?: AuthenticationResponseJSON) => {
 		await this.api.post('/webauthn/reauthenticate', body);
 	};
+
+	listMdsAuthenticators = async () =>
+		(await this.api.get('/webauthn/mds/authenticators')).data as MdsAuthenticator[];
+
+	listMdsKeyProtection = async () =>
+		(await this.api.get('/webauthn/mds/key-protection')).data as string[];
 }
 
 export default WebAuthnService;

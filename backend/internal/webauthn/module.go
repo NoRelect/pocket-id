@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
 )
 
 type TokenService interface {
@@ -33,6 +34,7 @@ type Dependencies struct {
 	Signer    TokenService
 	AuditLog  AuditLogger
 	AppConfig AppConfigProvider
+	MDS       *mds.Service
 }
 
 type Module struct {
@@ -67,6 +69,9 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, loginRateLi
 	apiGroup.GET("/webauthn/credentials", userAuth, m.handler.listCredentials)
 	apiGroup.PATCH("/webauthn/credentials/:id", userAuth, m.handler.updateCredential)
 	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, m.handler.deleteCredential)
+
+	apiGroup.GET("/webauthn/mds/authenticators", m.handler.listMdsAuthenticators)
+	apiGroup.GET("/webauthn/mds/key-protection", m.handler.listMdsKeyProtection)
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface
@@ -78,6 +83,17 @@ func (m *Module) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, 
 // It is consumed by the user controller for the admin "manage passkeys" view
 func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
 	return m.service.ListCredentials(ctx, userID)
+}
+
+func (m *Module) IsAAGUIDCompromised(aaguid string) bool {
+	if m.service.mds == nil || aaguid == "" {
+		return false
+	}
+	entry, found := m.service.mds.Lookup(aaguid)
+	if !found {
+		return false
+	}
+	return mds.IsCompromised(entry)
 }
 
 // DeleteCredential removes a passkey, optionally on behalf of an admin acting for another user

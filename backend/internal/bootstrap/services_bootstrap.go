@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
 )
 
 type services struct {
@@ -38,6 +39,7 @@ type services struct {
 	apiKeyModule   *apikey.Module
 	oidcModule     *oidc.Module
 	webauthnModule *webauthn.Module
+	mdsService     *mds.Service
 }
 
 // Initializes all services
@@ -66,12 +68,19 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)
+
+	svc.mdsService = mds.NewService(httpClient)
+	if err := svc.mdsService.LoadFromDisk(); err != nil {
+		return nil, fmt.Errorf("Failed to load FIDO MDS cache from disk: %w", err)
+	}
+
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
 		AppURL:    common.EnvConfig.AppURL,
 		Signer:    svc.jwtService,
 		AuditLog:  svc.auditLogService,
 		AppConfig: svc.appConfigService,
+		MDS:       svc.mdsService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)

@@ -119,6 +119,10 @@ func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) {
 		return
 	}
 
+	for i := range credentialDtos {
+		credentialDtos[i].IsCompromised = uc.webAuthnService.IsAAGUIDCompromised(credentialDtos[i].AAGUID)
+	}
+
 	c.JSON(http.StatusOK, credentialDtos)
 }
 

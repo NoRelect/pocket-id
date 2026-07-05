@@ -26,6 +26,7 @@
 		userGroupIds: data.user.userGroups.map((g) => g.id)
 	});
 	let passkeys: Passkey[] = $state(data.passkeys);
+	const mdsMap = data.mdsMap;
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
@@ -147,7 +148,7 @@
 		</Item.Content>
 	</Item.Root>
 	{#if passkeys.length > 0}
-		<AdminPasskeyList userId={user.id} bind:passkeys />
+		<AdminPasskeyList userId={user.id} bind:passkeys {mdsMap} />
 	{/if}
 </Item.Group>
 

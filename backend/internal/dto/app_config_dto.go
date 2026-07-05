@@ -55,4 +55,8 @@ type AppConfigUpdateDto struct {
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
 	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required"`
 	EmailVerificationEnabled                   string `json:"emailVerificationEnabled" binding:"required"`
+	PasskeyAttestationMode                     string `json:"passkeyAttestationMode" binding:"omitempty,oneof=disabled optional required"`
+	PasskeyAllowedAaguids                      string `json:"passkeyAllowedAaguids"`
+	PasskeyMinCertificationLevel               string `json:"passkeyMinCertificationLevel" binding:"omitempty,oneof=FIDO_CERTIFIED FIDO_CERTIFIED_L1 FIDO_CERTIFIED_L1plus FIDO_CERTIFIED_L2 FIDO_CERTIFIED_L2plus FIDO_CERTIFIED_L3 FIDO_CERTIFIED_L3plus"`
+	PasskeyRequiredKeyProtection               string `json:"passkeyRequiredKeyProtection"`
 }
