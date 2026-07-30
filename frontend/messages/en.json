@@ -577,6 +577,7 @@
 	"passkey_attestation_mode_optional": "Optional",
 	"passkey_attestation_mode_required_description": "Attestation is required. Only authenticators present in the FIDO MDS that are not marked as compromised and that support basic_full attestation are accepted.",
 	"passkey_attestation_mode_required": "Required",
+	"passkey_attestation_mode_description": "Decide whether passkey registration requires attestation from the authenticator, and whether it is enforced.",
 	"passkey_attestation_mode": "Attestation Mode",
 	"passkey_attestation_preset_none": "Clear selection",
 	"passkey_attestation_select_all": "Select all",

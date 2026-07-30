@@ -128,8 +128,8 @@
 		}
 	];
 
-	const currentModeOption = $derived(
-		attestationModeOptions.find((o) => o.value === attestationMode)
+	const currentModeLabel = $derived(
+		attestationModeOptions.find((o) => o.value === attestationMode)?.label ?? attestationMode
 	);
 
 	const certificationLevelOptions = [
@@ -235,21 +235,24 @@
 	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
 		<Field.Field>
 			<Field.Label>{m.passkey_attestation_mode()}</Field.Label>
-			{#if currentModeOption}
-				<Field.Description>{currentModeOption.description}</Field.Description>
-			{/if}
+			<Field.Description>{m.passkey_attestation_mode_description()}</Field.Description>
 			<Select.Root
 				type="single"
 				value={attestationMode}
 				onValueChange={(v) => (attestationMode = v as typeof attestationMode)}
 			>
 				<Select.Trigger class="w-full" aria-label={m.passkey_attestation_mode()}>
-					{currentModeOption?.label ?? attestationMode}
+					{currentModeLabel}
 				</Select.Trigger>
 				<Select.Content>
 					{#each attestationModeOptions as option}
 						<Select.Item value={option.value}>
-							{option.label}
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{option.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{option.description}
+								</span>
+							</div>
 						</Select.Item>
 					{/each}
 				</Select.Content>
