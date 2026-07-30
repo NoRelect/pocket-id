@@ -30,7 +30,6 @@ type AppConfigModel struct {
 	PasskeyAttestationMode       AppConfigValue `json:"passkeyAttestationMode" public:"true"`
 	PasskeyAllowedAaguids        AppConfigValue `json:"passkeyAllowedAaguids" public:"true"`
 	PasskeyMinCertificationLevel AppConfigValue `json:"passkeyMinCertificationLevel" public:"true"`
-	PasskeyRequiredKeyProtection AppConfigValue `json:"passkeyRequiredKeyProtection" public:"true"`
 	// Email
 	RequireUserEmail                           AppConfigValue `json:"requireUserEmail" type:"bool" public:"true"`
 	SmtpHost                                   AppConfigValue `json:"smtpHost"`
@@ -119,7 +118,6 @@ func getDefaultConfig() *AppConfigModel {
 		PasskeyAttestationMode:       "optional",
 		PasskeyAllowedAaguids:        "",
 		PasskeyMinCertificationLevel: "",
-		PasskeyRequiredKeyProtection: "",
 		// Email
 		RequireUserEmail:              "true",
 		SmtpHost:                      "",

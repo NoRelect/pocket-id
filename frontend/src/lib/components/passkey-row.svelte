@@ -16,7 +16,7 @@
 		label,
 		description,
 		isCompromised = false,
-		aaguid = '',
+		attestationVerified = true,
 		mdsAuthenticator
 	}: {
 		icon: typeof IconType;
@@ -26,11 +26,9 @@
 		description?: string;
 		label?: string;
 		isCompromised?: boolean;
-		aaguid?: string;
+		attestationVerified?: boolean;
 		mdsAuthenticator?: MdsAuthenticator;
 	} = $props();
-
-	const attestationVerified = $derived(aaguid !== '');
 
 	let detailOpen = $state(false);
 </script>

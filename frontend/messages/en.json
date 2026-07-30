@@ -16,6 +16,7 @@
 	"click_profile_picture_to_upload_custom": "Click on the profile picture to upload a custom one from your files.",
 	"image_should_be_in_format": "The image should be in PNG, JPEG or WEBP format.",
 	"items_per_page": "Items per page",
+	"loading": "Loading...",
 	"no_items_found": "No items found",
 	"select_items": "Select items...",
 	"search": "Search...",
@@ -564,7 +565,7 @@
 	"or": "or",
 	"visit_and_enter": "Visit {url} and enter:",
 	"device_login_request_expired": "Your QR-Code has expired. Please start the sign-in process again.",
-	"passkey_allowed_aaguids_description": "Restrict passkey registration to specific authenticators. Leave empty to allow all non-compromised authenticators.",
+	"passkey_allowed_aaguids_description": "Restrict passkey registration to specific authenticators. Leave empty to allow all non-compromised authenticators. All authenticators marked as compromised in the FIDO MDS are automatically disabled and can't be used to login.",
 	"passkey_allowed_aaguids": "Allowed Authenticators",
 	"passkey_attestation_configure": "Control which authenticators are allowed to register passkeys using the FIDO Alliance Metadata Service (MDS) information.",
 	"passkey_attestation_error_compromised": "This authenticator has been flagged as compromised and cannot be used.",
@@ -598,10 +599,7 @@
 	"passkey_min_certification_level": "Minimum Certification Level",
 	"passkey_no_additional_information": "No additional information available.",
 	"passkey_prune_selection_confirm": "Remove",
-	"passkey_prune_selection_description": "The following previously explicitly allowed authenticators no longer meet the key protection or certification level requirements and will therefore be removed from the allowed authenticators:",
+	"passkey_prune_selection_description": "The following previously explicitly allowed authenticators no longer meet the certification level requirement and will therefore be removed from the allowed authenticators:",
 	"passkey_prune_selection_title": "Remove excluded authenticators?",
-	"passkey_required_key_protection_description": "Only allow authenticators that provide all of the selected key protection mechanisms. Leave empty to allow any.",
-	"passkey_required_key_protection_none": "Any",
-	"passkey_required_key_protection": "Required Key Protection",
-	"passkey_show_hidden_authenticators": "Show authenticators excluded by the restrictions above"
+	"passkey_show_hidden_authenticators": "Show authenticators excluded by the minimum certification level restrictions above"
 }

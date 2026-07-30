@@ -37,9 +37,6 @@ class WebAuthnService extends APIService {
 
 	listMdsAuthenticators = async () =>
 		(await this.api.get('/webauthn/mds/authenticators')).data as MdsAuthenticator[];
-
-	listMdsKeyProtection = async () =>
-		(await this.api.get('/webauthn/mds/key-protection')).data as string[];
 }
 
 export default WebAuthnService;

@@ -50,17 +50,6 @@
 		appConfig.passkeyMinCertificationLevel ?? ''
 	);
 
-	let requiredKeyProtection = $state<string[]>(
-		appConfig.passkeyRequiredKeyProtection
-			? appConfig.passkeyRequiredKeyProtection
-					.split(',')
-					.map((s) => s.trim())
-					.filter(Boolean)
-			: []
-	);
-
-	let keyProtectionOptions = $state<string[]>([]);
-
 	let mdsAuthenticators = $state<MdsAuthenticator[]>([]);
 	let mdsLoading = $state(false);
 	let isLoading = $state(false);
@@ -77,12 +66,7 @@
 	onMount(async () => {
 		mdsLoading = true;
 		try {
-			const [authenticators, keyProtection] = await Promise.all([
-				webAuthnService.listMdsAuthenticators(),
-				webAuthnService.listMdsKeyProtection().catch(() => [] as string[])
-			]);
-			mdsAuthenticators = authenticators;
-			keyProtectionOptions = [...new Set([...keyProtection, ...requiredKeyProtection])].sort();
+			mdsAuthenticators = await webAuthnService.listMdsAuthenticators();
 		} catch {
 		} finally {
 			mdsLoading = false;
@@ -106,9 +90,13 @@
 		selectedAAGUIDs = [];
 	}
 
+	function supportsBasicFullAttestation(a: MdsAuthenticator): boolean {
+		return a.attestationTypes.includes('basic_full');
+	}
+
 	function selectAll() {
 		selectedAAGUIDs = mdsAuthenticators
-			.filter((a) => !a.isCompromised && passesRestrictions(a))
+			.filter((a) => !a.isCompromised && supportsBasicFullAttestation(a) && passesRestrictions(a))
 			.map((a) => a.aaguid);
 	}
 
@@ -117,8 +105,7 @@
 		await callback({
 			passkeyAttestationMode: attestationMode,
 			passkeyAllowedAaguids: selectedAAGUIDs.join(','),
-			passkeyMinCertificationLevel: minCertificationLevel,
-			passkeyRequiredKeyProtection: requiredKeyProtection.join(',')
+			passkeyMinCertificationLevel: minCertificationLevel
 		}).finally(() => (isLoading = false));
 		toast.success(m.passkey_attestation_updated_successfully());
 	}
@@ -157,25 +144,11 @@
 		certificationLevelOptions.find((o) => o.value === minCertificationLevel)
 	);
 
-	function formatKeyProtection(value: string): string {
-		return value
-			.split('_')
-			.map((w) => (w === 'tee' ? 'TEE' : w.charAt(0).toUpperCase() + w.slice(1)))
-			.join(' ');
-	}
-
-	const keyProtectionTriggerLabel = $derived(
-		requiredKeyProtection.length > 0
-			? requiredKeyProtection.map(formatKeyProtection).join(', ')
-			: m.passkey_required_key_protection_none()
-	);
-
 	const showAllowList = $derived(attestationMode === 'required');
 
 	$effect(() => {
 		if (showAllowList) return;
 		minCertificationLevel = '';
-		requiredKeyProtection = [];
 		selectedAAGUIDs = [];
 	});
 
@@ -193,25 +166,13 @@
 				return false;
 			}
 		}
-		if (requiredKeyProtection.length > 0) {
-			const declared = a.keyProtection.map((kp) => kp.toLowerCase());
-			if (!requiredKeyProtection.every((kp) => declared.includes(kp))) {
-				return false;
-			}
-		}
 		return true;
 	}
 
-	let restrictionSnapshot = $state({
-		minCertificationLevel,
-		requiredKeyProtection: [...requiredKeyProtection].sort().join(',')
-	});
+	let restrictionSnapshot = $state({ minCertificationLevel });
 
 	$effect(() => {
-		const currentKeyProtection = [...requiredKeyProtection].sort().join(',');
-		const changed =
-			minCertificationLevel !== restrictionSnapshot.minCertificationLevel ||
-			currentKeyProtection !== restrictionSnapshot.requiredKeyProtection;
+		const changed = minCertificationLevel !== restrictionSnapshot.minCertificationLevel;
 
 		if (!changed || pruneOpen) return;
 
@@ -220,7 +181,7 @@
 		);
 
 		if (affected.length === 0) {
-			restrictionSnapshot = { minCertificationLevel, requiredKeyProtection: currentKeyProtection };
+			restrictionSnapshot = { minCertificationLevel };
 			return;
 		}
 
@@ -229,13 +190,10 @@
 		pruneApply = () => {
 			const remove = new Set(affected.map((a) => a.aaguid));
 			selectedAAGUIDs = selectedAAGUIDs.filter((aaguid) => !remove.has(aaguid));
-			restrictionSnapshot = { minCertificationLevel, requiredKeyProtection: currentKeyProtection };
+			restrictionSnapshot = { minCertificationLevel };
 		};
 		pruneRevert = () => {
 			minCertificationLevel = previousSnapshot.minCertificationLevel;
-			requiredKeyProtection = previousSnapshot.requiredKeyProtection
-				? previousSnapshot.requiredKeyProtection.split(',')
-				: [];
 		};
 		pruneOpen = true;
 	});
@@ -259,6 +217,7 @@
 			.filter(
 				(a) =>
 					!a.isCompromised &&
+					supportsBasicFullAttestation(a) &&
 					(!q || a.description.toLowerCase().includes(q) || a.aaguid.toLowerCase().includes(q))
 			)
 			.map((a) => ({ auth: a, excluded: !passesRestrictions(a) }))
@@ -266,7 +225,9 @@
 	});
 
 	const hasHiddenAuthenticators = $derived(
-		mdsAuthenticators.some((a) => !a.isCompromised && !passesRestrictions(a))
+		mdsAuthenticators.some(
+			(a) => !a.isCompromised && supportsBasicFullAttestation(a) && !passesRestrictions(a)
+		)
 	);
 </script>
 
@@ -308,27 +269,6 @@
 							{#each certificationLevelOptions as option}
 								<Select.Item value={option.value}>
 									{option.label}
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</Field.Field>
-
-				<Field.Field>
-					<Field.Label>{m.passkey_required_key_protection()}</Field.Label>
-					<Field.Description>{m.passkey_required_key_protection_description()}</Field.Description>
-					<Select.Root type="multiple" bind:value={requiredKeyProtection}>
-						<Select.Trigger
-							class="w-full"
-							disabled={keyProtectionOptions.length === 0}
-							aria-label={m.passkey_required_key_protection()}
-						>
-							<span class="truncate">{keyProtectionTriggerLabel}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each keyProtectionOptions as option}
-								<Select.Item value={option} label={formatKeyProtection(option)}>
-									{formatKeyProtection(option)}
 								</Select.Item>
 							{/each}
 						</Select.Content>

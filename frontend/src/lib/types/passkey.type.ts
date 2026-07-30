@@ -3,6 +3,7 @@ export type Passkey = {
 	name: string;
 	createdAt: string;
 	aaguid: string;
+	attestationVerified: boolean;
 	isCompromised: boolean;
 };
 

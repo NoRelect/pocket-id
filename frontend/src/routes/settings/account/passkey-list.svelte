@@ -50,7 +50,7 @@
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
 			isCompromised={passkey.isCompromised}
-			aaguid={passkey.aaguid}
+			attestationVerified={passkey.attestationVerified}
 			mdsAuthenticator={mdsMap.get(passkey.aaguid)}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}

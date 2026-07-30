@@ -37,46 +37,6 @@ func TestCertificationLevelRank(t *testing.T) {
 	}
 }
 
-func TestDistinctKeyProtection(t *testing.T) {
-	s := &Service{}
-
-	if got := s.DistinctKeyProtection(); got != nil {
-		t.Errorf("expected nil for empty service, got %v", got)
-	}
-
-	e1 := Entry{}
-	e1.MetadataStatement.KeyProtection = []string{"HARDWARE", "tee"}
-	e2 := Entry{}
-	e2.MetadataStatement.KeyProtection = []string{"tee", "secure_element", ""}
-	s.SetEntriesForTest(map[string]Entry{"a": e1, "b": e2})
-
-	got := s.DistinctKeyProtection()
-	want := []string{"hardware", "secure_element", "tee"}
-	if len(got) != len(want) {
-		t.Fatalf("expected %v, got %v", want, got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("got[%d] = %q, want %q", i, got[i], want[i])
-		}
-	}
-}
-
-func TestEntryKeyProtection(t *testing.T) {
-	e := Entry{}
-	e.MetadataStatement.KeyProtection = []string{"HARDWARE", " secure_element "}
-	got := EntryKeyProtection(e)
-	want := []string{"hardware", "secure_element"}
-	if len(got) != len(want) {
-		t.Fatalf("expected %d values, got %d", len(want), len(got))
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("got[%d] = %q, want %q", i, got[i], want[i])
-		}
-	}
-}
-
 func TestCertificationLevelRankOrdering(t *testing.T) {
 	if CertificationLevelRank("FIDO_CERTIFIED_L2") <= CertificationLevelRank("FIDO_CERTIFIED_L1") {
 		t.Error("L2 should rank higher than L1")

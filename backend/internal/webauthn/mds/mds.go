@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,15 +66,6 @@ func fidoCertStatusRank(status metadata.AuthenticatorStatus) int {
 		}
 	}
 	return 0
-}
-
-func EntryKeyProtection(e Entry) []string {
-	kp := e.MetadataStatement.KeyProtection
-	out := make([]string, len(kp))
-	for i, v := range kp {
-		out[i] = strings.ToLower(strings.TrimSpace(v))
-	}
-	return out
 }
 
 func HighestCertificationLevel(e Entry) string {
@@ -283,30 +273,6 @@ func (s *Service) ListEntries() []Entry {
 	for _, e := range s.entries {
 		result = append(result, e)
 	}
-	return result
-}
-
-func (s *Service) DistinctKeyProtection() []string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	set := make(map[string]struct{})
-	for _, e := range s.entries {
-		for _, v := range EntryKeyProtection(e) {
-			if v != "" {
-				set[v] = struct{}{}
-			}
-		}
-	}
-	if len(set) == 0 {
-		return nil
-	}
-
-	result := make([]string, 0, len(set))
-	for v := range set {
-		result = append(result, v)
-	}
-	sort.Strings(result)
 	return result
 }
 

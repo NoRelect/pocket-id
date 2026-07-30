@@ -114,6 +114,9 @@
 			<Tabs.Trigger value="images">
 				{m.images()}
 			</Tabs.Trigger>
+			<Tabs.Trigger value="passkey-attestation">
+				{m.passkey_attestation_title()}
+			</Tabs.Trigger>
 		</Tabs.List>
 	</div>
 
@@ -174,6 +177,18 @@
 			</Card.Header>
 			<Card.Content>
 				<UpdateApplicationImages callback={updateImages} />
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+
+	<Tabs.Content value="passkey-attestation" id="application-configuration-passkey-attestation">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.passkey_attestation_title()}</Card.Title>
+				<Card.Description>{m.passkey_attestation_configure()}</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<AppConfigPasskeyAttestationForm {appConfig} callback={updateAppConfig} />
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>

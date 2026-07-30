@@ -24,8 +24,9 @@ type WebauthnCredentialDto struct {
 	AttestationType string                            `json:"attestationType"`
 	Transport       []protocol.AuthenticatorTransport `json:"transport" swaggertype:"array,string"`
 
-	AAGUID        string `json:"aaguid"`
-	IsCompromised bool   `json:"isCompromised"`
+	AAGUID              string `json:"aaguid"`
+	AttestationVerified bool   `json:"attestationVerified"`
+	IsCompromised       bool   `json:"isCompromised"`
 
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`

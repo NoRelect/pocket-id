@@ -17,7 +17,6 @@ export type AppConfig = {
 	passkeyAttestationMode: 'disabled' | 'optional' | 'required';
 	passkeyAllowedAaguids: string;
 	passkeyMinCertificationLevel: FidoCertificationLevel | '';
-	passkeyRequiredKeyProtection: string;
 };
 
 export type FidoCertificationLevel =

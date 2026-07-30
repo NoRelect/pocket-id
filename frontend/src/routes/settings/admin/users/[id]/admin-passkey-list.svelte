@@ -54,7 +54,7 @@
 			icon={LucideKeyRound}
 			showRenameAction={false}
 			isCompromised={passkey.isCompromised}
-			aaguid={passkey.aaguid}
+			attestationVerified={passkey.attestationVerified}
 			mdsAuthenticator={mdsMap.get(passkey.aaguid)}
 			onDelete={() => deletePasskey(passkey)}
 		/>

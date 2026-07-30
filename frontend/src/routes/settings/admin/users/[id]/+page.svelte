@@ -165,7 +165,7 @@
 				</Item.Content>
 			</Item.Root>
 			{#if passkeys.length > 0}
-				<AdminPasskeyList userId={user.id} bind:passkeys />
+				<AdminPasskeyList userId={user.id} bind:passkeys {mdsMap} />
 			{/if}
 		</Item.Group>
 	</Tabs.Content>

@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
 )
@@ -42,7 +43,9 @@ func (h *handler) beginRegistration(c *gin.Context) {
 	c.JSON(http.StatusOK, options.Response)
 }
 
-func (h *handler) enrichCredentialDto(d *dto.WebauthnCredentialDto) {
+func (h *handler) enrichCredentialDto(credential *model.WebauthnCredential, d *dto.WebauthnCredentialDto) {
+	d.AttestationVerified = credential.AttestationObject != nil
+
 	if h.service.mds == nil || d.AAGUID == "" {
 		return
 	}
@@ -79,7 +82,7 @@ func (h *handler) verifyRegistration(c *gin.Context) {
 		return
 	}
 
-	h.enrichCredentialDto(&credentialDto)
+	h.enrichCredentialDto(&credential, &credentialDto)
 	c.JSON(http.StatusOK, credentialDto)
 }
 
@@ -146,7 +149,7 @@ func (h *handler) listCredentials(c *gin.Context) {
 	}
 
 	for i := range credentialDtos {
-		h.enrichCredentialDto(&credentialDtos[i])
+		h.enrichCredentialDto(&credentials[i], &credentialDtos[i])
 	}
 
 	c.JSON(http.StatusOK, credentialDtos)
@@ -189,7 +192,7 @@ func (h *handler) updateCredential(c *gin.Context) {
 		return
 	}
 
-	h.enrichCredentialDto(&credentialDto)
+	h.enrichCredentialDto(&credential, &credentialDto)
 	c.JSON(http.StatusOK, credentialDto)
 }
 
@@ -230,14 +233,6 @@ func (h *handler) listMdsAuthenticators(c *gin.Context) {
 		return result[i].Description < result[j].Description
 	})
 	c.JSON(http.StatusOK, result)
-}
-
-func (h *handler) listMdsKeyProtection(c *gin.Context) {
-	values := h.service.mds.DistinctKeyProtection()
-	if values == nil {
-		values = []string{}
-	}
-	c.JSON(http.StatusOK, values)
 }
 
 func (h *handler) logout(c *gin.Context) {

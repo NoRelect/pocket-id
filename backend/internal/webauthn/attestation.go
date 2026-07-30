@@ -56,55 +56,7 @@ func (s *Service) checkCredentialRestrictions(dbConfig *appconfig.AppConfigModel
 		return err
 	}
 
-	if err := s.checkKeyProtection(aaguidStr, parseKeyProtection(dbConfig.PasskeyRequiredKeyProtection.String())); err != nil {
-		return err
-	}
-
 	return nil
-}
-
-func (s *Service) checkKeyProtection(aaguidStr string, required []string) error {
-	if len(required) == 0 {
-		return nil
-	}
-
-	if s.mds == nil {
-		return &common.PasskeyAttestationError{
-			Reason: "authenticator metadata is unavailable, cannot verify key protection",
-		}
-	}
-
-	entry, found := s.mds.Lookup(aaguidStr)
-	if !found {
-		return &common.PasskeyAttestationError{
-			Reason: fmt.Sprintf("authenticator AAGUID %s has no metadata entry, cannot verify key protection", aaguidStr),
-		}
-	}
-
-	declared := mds.EntryKeyProtection(entry)
-	for _, mechanism := range required {
-		if !slices.Contains(declared, mechanism) {
-			return &common.PasskeyAttestationError{
-				Reason: fmt.Sprintf("authenticator does not provide the required key protection %q", mechanism),
-			}
-		}
-	}
-
-	return nil
-}
-
-func parseKeyProtection(raw string) []string {
-	if raw == "" {
-		return nil
-	}
-	parts := strings.Split(raw, ",")
-	var result []string
-	for _, p := range parts {
-		if trimmedLower := strings.ToLower(strings.TrimSpace(p)); trimmedLower != "" {
-			result = append(result, trimmedLower)
-		}
-	}
-	return result
 }
 
 func (s *Service) checkMinCertificationLevel(aaguidStr, minLevel string) error {

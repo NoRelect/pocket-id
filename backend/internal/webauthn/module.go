@@ -73,7 +73,6 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, loginRateLi
 	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, m.handler.deleteCredential)
 
 	apiGroup.GET("/webauthn/mds/authenticators", m.handler.listMdsAuthenticators)
-	apiGroup.GET("/webauthn/mds/key-protection", m.handler.listMdsKeyProtection)
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface
