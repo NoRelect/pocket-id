@@ -7,12 +7,16 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -448,4 +452,157 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to look up client")
 	})
+}
+
+func TestOidcService_CreateClient_withDescription(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	description := "A test client description"
+	input := dto.OidcClientCreateDto{
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Test Client",
+			Description:  description,
+			CallbackURLs: []string{"https://example.com/callback"},
+		},
+	}
+
+	client, err := s.CreateClient(t.Context(), input, "user-id")
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	require.NotEmpty(t, fetched.Description)
+	assert.Equal(t, description, fetched.Description)
+}
+
+func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	input := dto.OidcClientCreateDto{
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Test Client",
+			CallbackURLs: []string{"https://example.com/callback"},
+		},
+	}
+
+	client, err := s.CreateClient(t.Context(), input, "user-id")
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	assert.Empty(t, fetched.Description)
+}
+
+func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{Name: "Test Client"}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	customSecret := "custom-client-secret-with-a-minimum-length"
+	input := dto.OidcClientSecretDto{Secret: customSecret}
+
+	secret, err := s.CreateClientSecret(t.Context(), client.ID, input)
+	require.NoError(t, err)
+	assert.Equal(t, customSecret, secret)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(fetched.Secret), []byte(customSecret)))
+}
+
+func TestOidcService_UpdateClient_description(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Create a client without a description
+	client := model.OidcClient{
+		Name:         "Test Client",
+		CallbackURLs: model.UrlList{"https://example.com/callback"},
+	}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	// Update with a description
+	description := "Updated description"
+	input := dto.OidcClientUpdateDto{
+		Name:         "Test Client",
+		Description:  description,
+		CallbackURLs: []string{"https://example.com/callback"},
+	}
+
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	require.NotEmpty(t, fetched.Description)
+	assert.Equal(t, description, fetched.Description)
+
+	// Update to clear the description
+	input.Description = ""
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	assert.Empty(t, fetched.Description)
+}
+
+func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}
+	otherGroup := model.UserGroup{Name: "other", FriendlyName: "Other"}
+	require.NoError(t, db.Create(&allowedGroup).Error)
+	require.NoError(t, db.Create(&otherGroup).Error)
+
+	userWithGroup := model.User{Username: "with-group", UserGroups: []model.UserGroup{allowedGroup}}
+	userWithoutGroup := model.User{Username: "without-group"}
+	require.NoError(t, db.Create(&userWithGroup).Error)
+	require.NoError(t, db.Create(&userWithoutGroup).Error)
+
+	clients := []model.OidcClient{
+		{Name: "Unrestricted", CallbackURLs: model.UrlList{"https://unrestricted.example.com/callback"}},
+		{Name: "Restricted without groups", CallbackURLs: model.UrlList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
+		{Name: "Restricted to user group", CallbackURLs: model.UrlList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
+		{Name: "Restricted to other group", CallbackURLs: model.UrlList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
+	}
+	for i := range clients {
+		require.NoError(t, db.Create(&clients[i]).Error)
+	}
+
+	groupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithGroup.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"Unrestricted", "Restricted to user group"}, accessibleClientNames(groupClients))
+
+	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
+}
+
+func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {
+	names := make([]string, len(clients))
+	for i := range clients {
+		names[i] = clients[i].Name
+	}
+	return names
 }

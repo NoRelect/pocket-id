@@ -13,9 +13,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// importResetTargetVersion is a real migration version the import resets the schema to.
-// It only has to be at or beyond 20240817191051 (the rename_config_table migration that toggles foreign keys), so the reset exercises a foreign-key-sensitive migration.
-const importResetTargetVersion = 20260726153900
+// importResetTargetVersion is a real migration version the import resets the schema to
+// It only has to be at or beyond 20240817191051 (the rename_config_table migration that toggles foreign keys), so the reset exercises a foreign-key-sensitive migration
+const importResetTargetVersion = 20260707170000
 
 // openImportTestDB opens a Gorm SQLite pool on a file database using the same pragmas the application configures in production, most importantly foreign_keys(1) on every connection (normalize() is already registered by the service package's test setup)
 func openImportTestDB(t *testing.T, dbPath string, cfg func(*sql.DB)) *gorm.DB {
@@ -54,12 +54,14 @@ func seedActorHostSchema(t *testing.T, db *gorm.DB) {
 func requireActorHostSchemaPreserved(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	var tableRows int64
-	require.NoError(t, db.Raw(`SELECT count(*) FROM francis_active_actors`).Scan(&tableRows).Error)
+	err := db.Raw(`SELECT count(*) FROM francis_active_actors`).Scan(&tableRows).Error
+	require.NoError(t, err)
 	require.Equal(t, int64(1), tableRows, "francis_ tables and their rows must be preserved by an import")
 
 	// The view is only valid if its backing table was preserved as well
 	var viewCount int64
-	require.NoError(t, db.Raw(`SELECT n FROM francis_host_active_actor_count`).Scan(&viewCount).Error)
+	err = db.Raw(`SELECT n FROM francis_host_active_actor_count`).Scan(&viewCount).Error
+	require.NoError(t, err)
 	require.Equal(t, int64(1), viewCount, "francis_ views must be preserved by an import")
 }
 

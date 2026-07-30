@@ -5,6 +5,7 @@ import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 type OidcClientMetaDataDto struct {
 	ID                       string  `json:"id"`
 	Name                     string  `json:"name"`
+	Description              string  `json:"description"`
 	HasLogo                  bool    `json:"hasLogo"`
 	HasDarkLogo              bool    `json:"hasDarkLogo"`
 	LaunchURL                *string `json:"launchURL"`
@@ -36,6 +37,7 @@ type OidcClientWithAllowedGroupsCountDto struct {
 
 type OidcClientUpdateDto struct {
 	Name                                string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
+	Description                         string                   `json:"description" binding:"omitempty,max=150" unorm:"nfc"`
 	CallbackURLs                        []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	IsPublic                            bool                     `json:"isPublic"`
@@ -55,6 +57,10 @@ type OidcClientUpdateDto struct {
 type OidcClientCreateDto struct {
 	OidcClientUpdateDto
 	ID string `json:"id" binding:"omitempty,client_id,min=2,max=128"`
+}
+
+type OidcClientSecretDto struct {
+	Secret string `json:"secret" binding:"omitempty,min=16,printascii"`
 }
 
 type OidcClientCredentialsDto struct {
@@ -89,8 +95,15 @@ type OidcDeviceAuthorizationResponseDto struct {
 	Interval                int    `json:"interval"`
 }
 
+type ScopeInfoDto struct {
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 type DeviceCodeInfoDto struct {
 	Scope                    []string              `json:"scope"`
+	ScopeInfo                []ScopeInfoDto        `json:"scopeInfo"`
 	AuthorizationRequired    bool                  `json:"authorizationRequired"`
 	ReauthenticationRequired bool                  `json:"reauthenticationRequired"`
 	Client                   OidcClientMetaDataDto `json:"client"`

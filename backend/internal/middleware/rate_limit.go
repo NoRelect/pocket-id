@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"math"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,15 +19,18 @@ import (
 // Rate-limit policy names
 // Each constant names a limiter registered on the actor host and is the value passed to Add to select that limiter
 const (
-	RateLimitAPI                    = "api"
-	RateLimitSignup                 = "signup"
-	RateLimitWebauthnLogin          = "webauthn-login"
-	RateLimitWebauthnReauthenticate = "webauthn-reauthenticate"
-	RateLimitOneTimeAccessToken     = "one-time-access-token"
-	RateLimitOneTimeAccessEmail     = "one-time-access-email"
-	RateLimitSendEmailVerification  = "send-email-verification"
-	RateLimitVerifyEmail            = "verify-email"
-	RateLimitInternal               = "internal"
+	RateLimitAPI                     = "api"
+	RateLimitSignup                  = "signup"
+	RateLimitWebauthnLogin           = "webauthn-login"
+	RateLimitWebauthnReauthenticate  = "webauthn-reauthenticate"
+	RateLimitOneTimeAccessToken      = "one-time-access-token"
+	RateLimitOneTimeAccessEmail      = "one-time-access-email"
+	RateLimitDeviceLoginCreate       = "device-login-create"
+	RateLimitDeviceLoginExchange     = "device-login-exchange"
+	RateLimitDeviceLoginVerification = "device-login-verification"
+	RateLimitSendEmailVerification   = "send-email-verification"
+	RateLimitVerifyEmail             = "verify-email"
+	RateLimitInternal                = "internal"
 )
 
 // RateLimitPolicy is the configuration for a single rate-limit actor
@@ -46,12 +50,15 @@ type RateLimitPolicy struct {
 // The slice is built on each call so the policies are not retained at the package level, and the actor host registers one limiter per entry
 func RateLimitPolicies() []RateLimitPolicy {
 	return []RateLimitPolicy{
-		{Name: RateLimitAPI, Rate: 100, Per: time.Second},
+		{Name: RateLimitAPI, Rate: 100, Per: time.Second, Burst: 300},
 		{Name: RateLimitSignup, Rate: 2, Per: time.Minute, Burst: 10},
 		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 5 * time.Second, Burst: 10},
 		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessEmail, Rate: 2, Per: 10 * time.Minute, Burst: 5},
+		{Name: RateLimitDeviceLoginCreate, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitDeviceLoginExchange, Rate: 1, Per: 2 * time.Second, Burst: 10},
+		{Name: RateLimitDeviceLoginVerification, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
 		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitInternal, Rate: 20, Per: time.Second, Burst: 20},
@@ -88,7 +95,7 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 
 		// Skip rate limiting for localhost and test environment
 		// If the client ip is localhost the request comes from the frontend
-		if ip == "" || ip == "127.0.0.1" || ip == "::1" || common.EnvConfig.AppEnv.IsTest() {
+		if common.EnvConfig.AppEnv == common.AppEnvTest || net.ParseIP(ip).IsLoopback() {
 			c.Next()
 			return
 		}

@@ -3,6 +3,7 @@ import type { UserGroup } from './user-group.type';
 export type OidcClientMetaData = {
 	id: string;
 	name: string;
+	description: string;
 	hasLogo: boolean;
 	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;
@@ -19,6 +20,15 @@ export type OidcClientFederatedIdentity = {
 
 export type OidcClientCredentials = {
 	federatedIdentities: OidcClientFederatedIdentity[];
+};
+
+export type OidcDiscoveryConfiguration = {
+	issuer: string;
+	authorization_endpoint: string;
+	token_endpoint: string;
+	userinfo_endpoint: string;
+	end_session_endpoint: string;
+	jwks_uri: string;
 };
 
 export type OidcClient = OidcClientMetaData & {
@@ -43,7 +53,10 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'>;
+export type OidcClientUpdate = Omit<
+	OidcClient,
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'
+>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };
@@ -61,6 +74,7 @@ export type OidcClientCreateWithLogo = OidcClientCreate & {
 
 export type OidcDeviceCodeInfo = {
 	scope: string[];
+	scopeInfo: InteractionScopeInfo[];
 	authorizationRequired: boolean;
 	reauthenticationRequired: boolean;
 	client: OidcClientMetaData;
@@ -72,9 +86,16 @@ export type AccessibleOidcClient = OidcClientMetaData & {
 
 export type InteractionStep = 'authenticate' | 'select_account' | 'reauthenticate' | 'consent';
 
+export type InteractionScopeInfo = {
+	key: string;
+	name: string;
+	description?: string;
+};
+
 export type InteractionSession = {
 	id: string;
 	scopes: string[];
+	scopeInfo: InteractionScopeInfo[];
 	client: OidcClientMetaData;
 	currentStep?: InteractionStep;
 	requiredSteps: InteractionStep[];

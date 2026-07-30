@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn/mds"
@@ -16,9 +17,8 @@ const (
 	AttestationModeRequired = "required"
 )
 
-func (s *Service) checkAttestation(aaguid []byte, attestationType string, allowedAAGUIDs []string) error {
-	cfg := s.appConfig.GetDbConfig()
-	mode := strings.ToLower(strings.TrimSpace(cfg.PasskeyAttestationMode.Value))
+func (s *Service) checkAttestation(dbConfig *appconfig.AppConfigModel, aaguid []byte, attestationType string, allowedAAGUIDs []string) error {
+	mode := strings.ToLower(strings.TrimSpace(dbConfig.PasskeyAttestationMode.String()))
 
 	if mode == "" || mode == AttestationModeDisabled || mode == AttestationModeOptional {
 		return nil
@@ -44,21 +44,19 @@ func (s *Service) checkAttestation(aaguid []byte, attestationType string, allowe
 		}
 	}
 
-	if err := s.checkCredentialRestrictions(aaguidStr); err != nil {
+	if err := s.checkCredentialRestrictions(dbConfig, aaguidStr); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *Service) checkCredentialRestrictions(aaguidStr string) error {
-	cfg := s.appConfig.GetDbConfig()
-
-	if err := s.checkMinCertificationLevel(aaguidStr, strings.TrimSpace(cfg.PasskeyMinCertificationLevel.Value)); err != nil {
+func (s *Service) checkCredentialRestrictions(dbConfig *appconfig.AppConfigModel, aaguidStr string) error {
+	if err := s.checkMinCertificationLevel(aaguidStr, strings.TrimSpace(dbConfig.PasskeyMinCertificationLevel.String())); err != nil {
 		return err
 	}
 
-	if err := s.checkKeyProtection(aaguidStr, parseKeyProtection(cfg.PasskeyRequiredKeyProtection.Value)); err != nil {
+	if err := s.checkKeyProtection(aaguidStr, parseKeyProtection(dbConfig.PasskeyRequiredKeyProtection.String())); err != nil {
 		return err
 	}
 

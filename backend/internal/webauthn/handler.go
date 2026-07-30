@@ -1,6 +1,7 @@
 package webauthn
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
 
@@ -16,16 +17,22 @@ import (
 
 type handler struct {
 	service   *Service
-	appConfig AppConfigProvider
+	appConfig AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
+func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
 func (h *handler) beginRegistration(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	userID := c.GetString("userID")
-	options, err := h.service.BeginRegistration(c.Request.Context(), userID)
+	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -47,6 +54,12 @@ func (h *handler) enrichCredentialDto(d *dto.WebauthnCredentialDto) {
 }
 
 func (h *handler) verifyRegistration(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
 		_ = c.Error(&common.MissingSessionIdError{})
@@ -54,7 +67,7 @@ func (h *handler) verifyRegistration(c *gin.Context) {
 	}
 
 	userID := c.GetString("userID")
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), sessionID, userID, c.Request, c.ClientIP())
+	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, c.Request, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -82,6 +95,12 @@ func (h *handler) beginLogin(c *gin.Context) {
 }
 
 func (h *handler) verifyLogin(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
 		_ = c.Error(&common.MissingSessionIdError{})
@@ -94,20 +113,20 @@ func (h *handler) verifyLogin(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.VerifyLogin(c.Request.Context(), sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(result.User, &userDto); err != nil {
+	if err := dto.MapStruct(user, &userDto); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, result.Token)
+	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
+	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
 }
