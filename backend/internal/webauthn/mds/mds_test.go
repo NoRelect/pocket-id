@@ -2,19 +2,6 @@ package mds
 
 import "testing"
 
-func TestCertificationLevels(t *testing.T) {
-	levels := CertificationLevels()
-	if len(levels) != len(fidoCertStatusOrder) {
-		t.Fatalf("expected %d levels, got %d", len(fidoCertStatusOrder), len(levels))
-	}
-	if levels[0] != "FIDO_CERTIFIED" {
-		t.Errorf("expected first level FIDO_CERTIFIED, got %q", levels[0])
-	}
-	if levels[len(levels)-1] != "FIDO_CERTIFIED_L3plus" {
-		t.Errorf("expected last level FIDO_CERTIFIED_L3plus, got %q", levels[len(levels)-1])
-	}
-}
-
 func TestCertificationLevelRank(t *testing.T) {
 	tests := []struct {
 		name  string

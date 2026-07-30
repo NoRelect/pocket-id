@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/go-co-op/gocron/v2"
 
@@ -37,16 +36,4 @@ func (j *mdsUpdateJob) run(ctx context.Context) error {
 		return nil
 	}
 	return nil
-}
-
-func NextRefreshIn(svc *mds.Service) time.Duration {
-	fetchedAt := svc.FetchedAt()
-	if fetchedAt.IsZero() {
-		return 0
-	}
-	remaining := mds.CacheTTL - time.Since(fetchedAt)
-	if remaining < 0 {
-		return 0
-	}
-	return remaining
 }

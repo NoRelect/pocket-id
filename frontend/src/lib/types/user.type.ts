@@ -2,8 +2,6 @@ import type { Locale } from '$lib/paraglide/runtime';
 import type { CustomClaim } from './custom-claim.type';
 import type { UserGroup } from './user-group.type';
 
-export type LoginResponse = User;
-
 export type User = {
 	id: string;
 	username: string;

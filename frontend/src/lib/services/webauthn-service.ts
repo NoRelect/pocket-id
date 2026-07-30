@@ -1,7 +1,7 @@
 import userStore from '$lib/stores/user-store';
 import type { MdsAuthenticator } from '$lib/types/passkey.type';
 import type { Passkey } from '$lib/types/passkey.type';
-import type { LoginResponse, User } from '$lib/types/user.type';
+import type { User } from '$lib/types/user.type';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
 import APIService from './api-service';
 
@@ -14,7 +14,7 @@ class WebAuthnService extends APIService {
 	getLoginOptions = async () => (await this.api.get(`/webauthn/login/start`)).data;
 
 	finishLogin = async (body: AuthenticationResponseJSON) =>
-		(await this.api.post(`/webauthn/login/finish`, body)).data as LoginResponse;
+		(await this.api.post(`/webauthn/login/finish`, body)).data as User;
 
 	logout = async () => {
 		await this.api.post(`/webauthn/logout`);

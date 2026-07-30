@@ -24,9 +24,9 @@
 		try {
 			const loginOptions = await webauthnService.getLoginOptions();
 			const authResponse = await startAuthentication({ optionsJSON: loginOptions });
-			const result = await webauthnService.finishLogin(authResponse);
+			const user = await webauthnService.finishLogin(authResponse);
 
-			await userStore.setUser(result);
+			await userStore.setUser(user);
 			goto(data.redirect || '/settings');
 		} catch (e) {
 			error = getWebauthnErrorMessage(e);

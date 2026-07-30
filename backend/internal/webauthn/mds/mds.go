@@ -47,14 +47,6 @@ var fidoCertStatusOrder = []metadata.AuthenticatorStatus{
 	metadata.FidoCertifiedL3plus,
 }
 
-func CertificationLevels() []string {
-	levels := make([]string, len(fidoCertStatusOrder))
-	for i, s := range fidoCertStatusOrder {
-		levels[i] = string(s)
-	}
-	return levels
-}
-
 func CertificationLevelRank(level string) int {
 	return fidoCertStatusRank(metadata.AuthenticatorStatus(level))
 }
@@ -208,22 +200,10 @@ func (s *Service) Lookup(aaguid string) (Entry, bool) {
 	return e, ok
 }
 
-func (s *Service) IsLoaded() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return len(s.entries) > 0
-}
-
 func (s *Service) FetchedAt() time.Time {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.fetchedAt
-}
-
-func (s *Service) NeedsRefresh() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.fetchedAt.IsZero() || time.Since(s.fetchedAt) >= CacheTTL
 }
 
 func (s *Service) Refresh(ctx context.Context) error {
